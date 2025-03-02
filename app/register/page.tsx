@@ -79,10 +79,11 @@ export default function RegisterPage() {
 
       // Redirect to onboarding
       router.push("/onboarding");
-    } catch (err) {
+    } catch (error) {
       // Show error toast
       toast.error("Registration failed", {
-        description: error || "Could not create account. Please try again.",
+        description:
+          String(error) || "Could not create account. Please try again.",
       });
     } finally {
       setIsLoading(false);

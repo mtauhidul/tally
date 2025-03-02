@@ -69,9 +69,12 @@ export default function LoginPage() {
       } else {
         router.push("/onboarding");
       }
-    } catch (err) {
+    } catch (error) {
       toast.error("Login failed", {
-        description: error || "Could not log in with those credentials",
+        description:
+          typeof error === "string"
+            ? error
+            : "Could not log in with those credentials",
       });
       setIsLoading(false);
     }
