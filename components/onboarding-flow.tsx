@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/contexts/auth-context";
 import { authAPI, goalsAPI } from "@/services/api";
-import { useToast } from "./ui/toaster";
+import { toast } from "sonner";
 
 // Step 1: Personal info schema
 const personalInfoSchema = z.object({
@@ -68,7 +68,6 @@ export function OnboardingFlow() {
   const [step, setStep] = useState<number>(1);
   const [profileData, setProfileData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const { toast } = useToast();
 
   // Step 1 form
   const form = useForm<PersonalInfoValues>({
@@ -86,14 +85,13 @@ export function OnboardingFlow() {
       setIsLoading(true);
       try {
         // Update user profile with form data
-        await authAPI.updateProfile({
-          profile: {
-            height: Number(data.height),
-            weight: Number(data.weight),
-            gender: data.sex,
-            age: Number(data.age),
-          },
-        });
+        if (user) {
+          await authAPI.updateProfile({
+            email: user.email,
+          });
+        } else {
+          throw new Error("User is not authenticated");
+        }
 
         // Store data for next steps
         setProfileData({
@@ -106,11 +104,9 @@ export function OnboardingFlow() {
         setStep(step + 1);
       } catch (error) {
         console.error("Error updating profile:", error);
-        toast({
-          title: "Error",
+        toast.error("Error", {
           description:
             "Could not save your profile information. Please try again.",
-          variant: "destructive",
         });
       } finally {
         setIsLoading(false);
@@ -132,10 +128,8 @@ export function OnboardingFlow() {
       setStep(step + 1);
     } catch (error) {
       console.error("Error saving goal:", error);
-      toast({
-        title: "Error",
-        description: "Could not save your goal. Please try again.",
-        variant: "destructive",
+      toast.error("Error", {
+        description: "Could not save your goal information. Please try again.",
       });
     } finally {
       setIsLoading(false);
