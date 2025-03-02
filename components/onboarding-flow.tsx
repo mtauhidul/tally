@@ -350,7 +350,7 @@ export function OnboardingFlow() {
       {step === 3 && (
         <Card>
           <CardHeader>
-            <CardTitle>You're all set!</CardTitle>
+            <CardTitle>You&apos;re all set!</CardTitle>
             <CardDescription>
               Your profile has been created and your goals are set.
             </CardDescription>

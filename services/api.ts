@@ -94,7 +94,16 @@ export const authAPI = {
     mealReminders?: boolean;
     units?: string;
   }) => {
-    return await api.put("/users/profile", profileData);
+    console.log("Updating profile with:", profileData); // Debugging
+    console.log("Request URL:", `${API_URL}/users/profile`); // Debugging
+    try {
+      const response = await api.put("/users/profile", profileData);
+      console.log("Response Data:", response.data); // Debugging
+      return response.data;
+    } catch (error) {
+      console.error("API Error:", error); // Debugging
+      throw error;
+    }
   },
 
   updatePassword: async (passwordData: {
