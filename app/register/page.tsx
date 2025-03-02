@@ -1,3 +1,4 @@
+// app/register/page.tsx
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -26,6 +27,9 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { registerUser } from "./action";
+
+// Import the server action
 
 const formSchema = z
   .object({
@@ -61,14 +65,24 @@ export default function RegisterPage() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    // Implement your registration logic here
+
+    // In a real app, we would send this to the server
     console.log(values);
-    setTimeout(() => {
+
+    // Create a FormData object to submit to the server action
+    const formData = new FormData();
+    formData.append("email", values.email);
+    formData.append("password", values.password);
+
+    try {
+      // Call the server action that will handle registration and redirect
+      await registerUser();
+    } catch (error) {
+      console.error("Registration error:", error);
       setIsLoading(false);
-      router.push("/dashboard");
-    }, 1000);
+    }
   }
 
   return (
