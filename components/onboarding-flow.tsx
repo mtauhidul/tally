@@ -34,6 +34,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAuth } from "@/contexts/auth-context";
+import { authAPI, goalsAPI } from "@/services/api";
+import { useToast } from "./ui/toaster";
 
 // Step 1: Personal info schema
 const personalInfoSchema = z.object({
@@ -61,7 +64,11 @@ type PersonalInfoValues = z.infer<typeof personalInfoSchema>;
 
 export function OnboardingFlow() {
   const router = useRouter();
+  const { user } = useAuth();
   const [step, setStep] = useState<number>(1);
+  const [profileData, setProfileData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const { toast } = useToast();
 
   // Step 1 form
   const form = useForm<PersonalInfoValues>({
@@ -74,11 +81,69 @@ export function OnboardingFlow() {
     },
   });
 
-  function handleNextStep(data?: PersonalInfoValues) {
+  async function handleNextStep(data?: PersonalInfoValues) {
     if (data) {
-      console.log("Step 1 data:", data);
+      setIsLoading(true);
+      try {
+        // Update user profile with form data
+        await authAPI.updateProfile({
+          profile: {
+            height: Number(data.height),
+            weight: Number(data.weight),
+            gender: data.sex,
+            age: Number(data.age),
+          },
+        });
+
+        // Store data for next steps
+        setProfileData({
+          height: Number(data.height),
+          weight: Number(data.weight),
+          gender: data.sex,
+          age: Number(data.age),
+        });
+
+        setStep(step + 1);
+      } catch (error) {
+        console.error("Error updating profile:", error);
+        toast({
+          title: "Error",
+          description:
+            "Could not save your profile information. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      setStep(step + 1);
     }
-    setStep(step + 1);
+  }
+
+  async function handleGoalSet(goalData: any) {
+    setIsLoading(true);
+    try {
+      // Create goal for user
+      await goalsAPI.createGoal(goalData);
+
+      // Mark onboarding as complete
+      await authAPI.completeOnboarding();
+
+      setStep(step + 1);
+    } catch (error) {
+      console.error("Error saving goal:", error);
+      toast({
+        title: "Error",
+        description: "Could not save your goal. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleFinish() {
+    router.push("/dashboard");
   }
 
   return (
@@ -242,8 +307,9 @@ export function OnboardingFlow() {
                 <Button
                   type="submit"
                   className="w-full bg-black text-white hover:bg-gray-800 mt-4"
+                  disabled={isLoading}
                 >
-                  Continue
+                  {isLoading ? "Saving..." : "Continue"}
                 </Button>
               </form>
             </Form>
@@ -254,16 +320,18 @@ export function OnboardingFlow() {
       {/* Step 2: Goal setting */}
       {step === 2 && (
         <>
-          <GoalSetting />
+          <GoalSetting
+            initialData={profileData}
+            onGoalSet={handleGoalSet}
+            isLoading={isLoading}
+          />
           <div className="mt-4 flex justify-between">
-            <Button variant="outline" onClick={() => setStep(1)}>
-              Back
-            </Button>
             <Button
-              className="bg-black text-white hover:bg-gray-800"
-              onClick={() => handleNextStep()}
+              variant="outline"
+              onClick={() => setStep(1)}
+              disabled={isLoading}
             >
-              Continue
+              Back
             </Button>
           </div>
         </>
@@ -291,7 +359,7 @@ export function OnboardingFlow() {
 
             <Button
               className="bg-black text-white hover:bg-gray-800"
-              onClick={() => router.push("/dashboard")}
+              onClick={handleFinish}
             >
               Go to Dashboard
             </Button>

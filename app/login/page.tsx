@@ -1,3 +1,4 @@
+// app/login/page.tsx
 "use client";
 
 import Link from "next/link";
@@ -23,7 +24,9 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/contexts/auth-context";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { toast } from "sonner";
 import { z } from "zod";
 
 const formSchema = z.object({
@@ -37,6 +40,7 @@ const formSchema = z.object({
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login, error, clearError, onboardingComplete } = useAuth();
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -47,14 +51,30 @@ export default function LoginPage() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    // Implement your login logic here
-    console.log(values);
-    setTimeout(() => {
+    clearError();
+
+    try {
+      await login(values.email, values.password);
+
+      // Show success toast
+      toast.success("Login successful", {
+        description: "Welcome back to Tally!",
+      });
+
+      // Redirect to appropriate page
+      if (onboardingComplete) {
+        router.push("/dashboard");
+      } else {
+        router.push("/onboarding");
+      }
+    } catch (err) {
+      toast.error("Login failed", {
+        description: error || "Could not log in with those credentials",
+      });
       setIsLoading(false);
-      router.push("/dashboard");
-    }, 1000);
+    }
   }
 
   return (

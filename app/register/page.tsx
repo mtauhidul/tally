@@ -27,9 +27,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { registerUser } from "./action";
-
-// Import the server action
+import { useAuth } from "@/contexts/auth-context";
+import { toast } from "sonner";
 
 const formSchema = z
   .object({
@@ -53,6 +52,7 @@ const formSchema = z
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { register, error, clearError } = useAuth();
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -67,20 +67,24 @@ export default function RegisterPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-
-    // In a real app, we would send this to the server
-    console.log(values);
-
-    // Create a FormData object to submit to the server action
-    const formData = new FormData();
-    formData.append("email", values.email);
-    formData.append("password", values.password);
+    clearError();
 
     try {
-      // Call the server action that will handle registration and redirect
-      await registerUser();
-    } catch (error) {
-      console.error("Registration error:", error);
+      await register(values.email, values.password);
+
+      // Show success toast
+      toast.success("Registration successful", {
+        description: "Welcome to Tally! Let's set up your profile.",
+      });
+
+      // Redirect to onboarding
+      router.push("/onboarding");
+    } catch (err) {
+      // Show error toast
+      toast.error("Registration failed", {
+        description: error || "Could not create account. Please try again.",
+      });
+    } finally {
       setIsLoading(false);
     }
   }

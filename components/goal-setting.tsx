@@ -4,7 +4,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { addWeeks, format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 
@@ -40,6 +40,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
+import { goalsAPI } from "@/services/api";
 
 const goalFormSchema = z.object({
   currentWeight: z.string().refine(
@@ -70,6 +71,17 @@ const goalFormSchema = z.object({
 
 type GoalFormValues = z.infer<typeof goalFormSchema>;
 
+interface GoalSettingProps {
+  initialData?: {
+    weight?: number;
+    height?: number;
+    gender?: string;
+    age?: number;
+  };
+  onGoalSet?: (goalData: any) => void;
+  isLoading?: boolean;
+}
+
 const activityLevels = [
   {
     value: "sedentary",
@@ -98,61 +110,126 @@ const activityLevels = [
   },
 ];
 
-export function GoalSetting() {
+export function GoalSetting({
+  initialData,
+  onGoalSet,
+  isLoading = false,
+}: GoalSettingProps) {
   const [recommendedCalories, setRecommendedCalories] = useState<number>(0);
   const [weightLossRate, setWeightLossRate] = useState<number>(1); // 1 lb per week
   const [showConfirmation, setShowConfirmation] = useState<boolean>(false);
+  const [calculatingCalories, setCalculatingCalories] =
+    useState<boolean>(false);
 
   const form = useForm<GoalFormValues>({
     resolver: zodResolver(goalFormSchema),
     defaultValues: {
-      currentWeight: "",
+      currentWeight: initialData?.weight ? String(initialData.weight) : "",
       goalWeight: "",
       targetDate: addWeeks(new Date(), 12), // Default to 12 weeks
       activityLevel: "moderate",
     },
   });
 
-  // Calculate recommended daily calories when form values change
-  const calculateCalories = (formValues: GoalFormValues, lossRate: number) => {
-    const currentWeight = parseFloat(formValues.currentWeight);
-    const goalWeight = parseFloat(formValues.goalWeight);
+  // Update recommended calories using API when form values change or weight loss rate changes
+  const handleCalculateCalories = async () => {
+    const formValues = form.getValues();
 
-    if (isNaN(currentWeight) || isNaN(goalWeight)) {
-      return 0;
+    // Skip if required values are missing
+    if (
+      !formValues.currentWeight ||
+      !formValues.activityLevel ||
+      !initialData
+    ) {
+      return;
     }
 
-    // Gender, height, and age would be more accurate, but this is a simplified calculation
-    const activityMultiplier =
-      activityLevels.find((level) => level.value === formValues.activityLevel)
-        ?.multiplier || 1.55;
+    setCalculatingCalories(true);
 
-    // Base metabolic rate (simplified)
-    const bmr = 10 * currentWeight + 1000; // Simplified BMR calculation
+    try {
+      const response = await goalsAPI.calculateCalories({
+        currentWeight: Number(formValues.currentWeight),
+        goalWeight: formValues.goalWeight
+          ? Number(formValues.goalWeight)
+          : undefined,
+        height: initialData.height || 0,
+        age: initialData.age || 0,
+        gender: initialData.gender || "male",
+        activityLevel: formValues.activityLevel,
+        weeklyWeightChange: -weightLossRate, // Negative for weight loss
+      });
 
-    // TDEE (Total Daily Energy Expenditure)
-    const maintenanceCalories = Math.round(bmr * activityMultiplier);
+      setRecommendedCalories(response.data.data.recommendedCalories);
+    } catch (error) {
+      console.error("Error calculating calories:", error);
+      // Fallback to a simple calculation
+      const currentWeight = parseFloat(formValues.currentWeight);
+      const activityMultiplier =
+        activityLevels.find((level) => level.value === formValues.activityLevel)
+          ?.multiplier || 1.55;
 
-    // Calories needed for weight loss (3500 calorie deficit per pound)
-    // lossRate is in pounds per week
-    const deficit = lossRate * 500; // 3500 calories / 7 days = 500 calories per day per pound
+      // Basic BMR and calorie calculation
+      const bmr = 10 * currentWeight + 1000;
+      const maintenanceCalories = Math.round(bmr * activityMultiplier);
+      const deficit = weightLossRate * 500;
 
-    // Don't go below 1200 calories for safety
-    return Math.max(1200, maintenanceCalories - deficit);
+      setRecommendedCalories(Math.max(1200, maintenanceCalories - deficit));
+    } finally {
+      setCalculatingCalories(false);
+    }
   };
 
+  // Call calorie calculation when form values change
+  useEffect(() => {
+    handleCalculateCalories();
+  }, [
+    weightLossRate,
+    form.watch("activityLevel"),
+    form.watch("currentWeight"),
+    form.watch("goalWeight"),
+  ]);
+
+  // Prepare goal data and submit
   function onSubmit(data: GoalFormValues) {
-    console.log("Goal data:", data);
-    // Would normally save this to the backend
-    setShowConfirmation(true);
-  }
+    // Convert string values to numbers
+    const currentWeight = Number(data.currentWeight);
+    const goalWeight = Number(data.goalWeight);
 
-  // Update recommended calories when form values change or weight loss rate changes
-  const handleFormChange = () => {
-    const formValues = form.getValues();
-    const calories = calculateCalories(formValues, weightLossRate);
-    setRecommendedCalories(calories);
-  };
+    // Determine goal type
+    let goalType = "maintain";
+    if (goalWeight < currentWeight) {
+      goalType = "lose";
+    } else if (goalWeight > currentWeight) {
+      goalType = "gain";
+    }
+
+    // Prepare goal data
+    const goalData = {
+      type: goalType,
+      currentWeight,
+      goalWeight,
+      targetDate: data.targetDate.toISOString(),
+      weeklyWeightChange:
+        goalType === "lose"
+          ? -weightLossRate
+          : goalType === "gain"
+          ? weightLossRate
+          : 0,
+      nutrition: {
+        dailyCalories: recommendedCalories,
+        protein: Math.round((recommendedCalories * 0.3) / 4), // 30% from protein
+        carbs: Math.round((recommendedCalories * 0.45) / 4), // 45% from carbs
+        fat: Math.round((recommendedCalories * 0.25) / 9), // 25% from fat
+      },
+    };
+
+    // Call the onGoalSet callback if provided
+    if (onGoalSet) {
+      onGoalSet(goalData);
+    } else {
+      setShowConfirmation(true);
+    }
+  }
 
   return (
     <Card className="border shadow-md max-w-2xl mx-auto">
@@ -207,11 +284,7 @@ export function GoalSetting() {
           </div>
         ) : (
           <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(onSubmit)}
-              className="space-y-6"
-              onChange={handleFormChange}
-            >
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <div className="grid gap-6 sm:grid-cols-2">
                 <FormField
                   control={form.control}
@@ -302,7 +375,7 @@ export function GoalSetting() {
                     <Select
                       onValueChange={(value) => {
                         field.onChange(value);
-                        handleFormChange();
+                        handleCalculateCalories();
                       }}
                       defaultValue={field.value}
                     >
@@ -338,7 +411,7 @@ export function GoalSetting() {
                   step={0.25}
                   onValueChange={(value) => {
                     setWeightLossRate(value[0]);
-                    handleFormChange();
+                    handleCalculateCalories();
                   }}
                 />
                 <div className="flex justify-between text-xs text-muted-foreground">
@@ -359,7 +432,9 @@ export function GoalSetting() {
                     Recommended Daily Calories
                   </h3>
                   <div className="text-2xl font-bold">
-                    {recommendedCalories} calories
+                    {calculatingCalories
+                      ? "Calculating..."
+                      : `${recommendedCalories} calories`}
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">
                     Based on your information and selected weight loss rate
@@ -370,8 +445,9 @@ export function GoalSetting() {
               <Button
                 type="submit"
                 className="w-full bg-black text-white hover:bg-gray-800"
+                disabled={isLoading || calculatingCalories}
               >
-                Set Goal
+                {isLoading ? "Setting Goal..." : "Set Goal"}
               </Button>
             </form>
           </Form>

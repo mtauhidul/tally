@@ -1,3 +1,7 @@
+// app/layout.tsx
+
+import { ToastProvider } from "@/components/ui/sonner-toast-provider";
+import { AuthProvider } from "@/contexts/auth-context";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -31,7 +35,13 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased h-full`}
       >
-        <div className="h-full bg-background text-foreground">{children}</div>
+        <AuthProvider>
+          <ToastProvider>
+            <div className="h-full bg-background text-foreground">
+              {children}
+            </div>
+          </ToastProvider>
+        </AuthProvider>
       </body>
     </html>
   );
