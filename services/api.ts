@@ -85,8 +85,14 @@ export const authAPI = {
 
   updateProfile: async (profileData: {
     name?: string;
-    email?: string;
-    password?: string;
+    height?: number;
+    weight?: number;
+    age?: number;
+    gender?: string;
+    activityLevel?: string;
+    darkMode?: boolean;
+    mealReminders?: boolean;
+    units?: string;
   }) => {
     return await api.put("/users/profile", profileData);
   },

@@ -147,7 +147,7 @@ export function AddMealDialog({ trigger, onMealAdded }: AddMealDialogProps) {
               </p>
             </div>
             <p className="text-xs text-gray-500">
-              We'll automatically detect the food and estimate calories
+              We&apos;ll automatically detect the food and estimate calories
             </p>
           </div>
         ) : (

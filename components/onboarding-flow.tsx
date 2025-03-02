@@ -66,7 +66,7 @@ export function OnboardingFlow() {
   const router = useRouter();
   const { user } = useAuth();
   const [step, setStep] = useState<number>(1);
-  const [profileData, setProfileData] = useState<any>(null);
+  const [profileData, setProfileData] = useState<Record<string, unknown>>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   // Step 1 form
@@ -87,7 +87,10 @@ export function OnboardingFlow() {
         // Update user profile with form data
         if (user) {
           await authAPI.updateProfile({
-            email: user.email,
+            height: Number(data.height),
+            weight: Number(data.weight),
+            age: Number(data.age),
+            gender: data.sex,
           });
         } else {
           throw new Error("User is not authenticated");
@@ -116,7 +119,19 @@ export function OnboardingFlow() {
     }
   }
 
-  async function handleGoalSet(goalData: any) {
+  async function handleGoalSet(goalData: {
+    currentWeight: number;
+    goalWeight: number;
+    targetDate: string;
+    type?: string;
+    weeklyWeightChange?: number;
+    nutrition?: {
+      dailyCalories: number;
+      protein?: number;
+      carbs?: number;
+      fat?: number;
+    };
+  }) {
     setIsLoading(true);
     try {
       // Create goal for user
@@ -200,8 +215,8 @@ export function OnboardingFlow() {
           <CardHeader>
             <CardTitle>Welcome to Tally!</CardTitle>
             <CardDescription>
-              Let's start by collecting some basic information to personalize
-              your experience.
+              Let&apos;s start by collecting some basic information to
+              personalize your experience.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -347,8 +362,8 @@ export function OnboardingFlow() {
 
             <h3 className="text-xl font-medium mb-2">Setup Complete!</h3>
             <p className="text-gray-600 mb-6">
-              You're ready to start tracking your nutrition and progress toward
-              your goals.
+              You&apos;re ready to start tracking your nutrition and progress
+              toward your goals.
             </p>
 
             <Button

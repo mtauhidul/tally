@@ -52,7 +52,7 @@ const formSchema = z
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { register, error, clearError } = useAuth();
+  const { register, clearError } = useAuth();
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const form = useForm<z.infer<typeof formSchema>>({

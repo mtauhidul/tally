@@ -78,7 +78,19 @@ interface GoalSettingProps {
     gender?: string;
     age?: number;
   };
-  onGoalSet?: (goalData: any) => void;
+  onGoalSet?: (goalData: {
+    type: string;
+    currentWeight: number;
+    goalWeight: number;
+    targetDate: string;
+    weeklyWeightChange: number;
+    nutrition: {
+      dailyCalories: number;
+      protein: number;
+      carbs: number;
+      fat: number;
+    };
+  }) => void;
   isLoading?: boolean;
 }
 
@@ -236,8 +248,8 @@ export function GoalSetting({
       <CardHeader>
         <CardTitle>Set Your Weight Goal</CardTitle>
         <CardDescription>
-          Tell us about your current weight and goals, and we'll help you track
-          your progress.
+          Tell us about your current weight and goals, and we&apos;ll help you
+          track your progress.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -261,7 +273,7 @@ export function GoalSetting({
             </div>
             <h3 className="text-xl font-medium">Your Goal Is Set!</h3>
             <p className="text-gray-600">
-              We've calculated your recommended daily intake to be{" "}
+              We&apos;ve calculated your recommended daily intake to be{" "}
               <span className="font-bold">{recommendedCalories} calories</span>.
               This will help you reach your goal weight of{" "}
               <span className="font-bold">
