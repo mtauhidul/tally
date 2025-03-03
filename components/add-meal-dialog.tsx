@@ -1,12 +1,3 @@
-// components/add-meal-dialog.tsx
-"use client";
-
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Camera, Clock, Plus } from "lucide-react";
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import * as z from "zod";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,249 +6,184 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-
-const formSchema = z.object({
-  mealType: z.enum(["breakfast", "lunch", "dinner", "snack"], {
-    required_error: "Please select a meal type.",
-  }),
-  description: z.string().min(3, {
-    message: "Description must be at least 3 characters.",
-  }),
-  calories: z.string().refine(
-    (val) => {
-      const num = Number(val);
-      return !Number.isNaN(num) && num > 0;
-    },
-    {
-      message: "Please enter a valid calorie amount.",
-    }
-  ),
-});
-
-type FormValues = z.infer<typeof formSchema>;
+import { useState } from "react";
 
 interface AddMealDialogProps {
-  trigger?: React.ReactNode;
-  onMealAdded?: (meal: FormValues) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onMealAdded: (meal: MealData) => void;
 }
 
-export function AddMealDialog({ trigger, onMealAdded }: AddMealDialogProps) {
-  const [open, setOpen] = useState(false);
-  const [isImageMode, setIsImageMode] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+interface MealData {
+  mealType: string;
+  description: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      mealType: "breakfast",
-      description: "",
-      calories: "",
-    },
+export function AddMealDialog({
+  open,
+  onOpenChange,
+  onMealAdded,
+}: AddMealDialogProps) {
+  const [mealData, setMealData] = useState<MealData>({
+    mealType: "breakfast",
+    description: "",
+    calories: 0,
+    protein: 0,
+    carbs: 0,
+    fat: 0,
   });
 
-  function onSubmit(data: FormValues) {
-    setIsLoading(true);
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    setMealData((prev) => ({ ...prev, [name]: value }));
+  };
 
-    // Simulate processing time
-    setTimeout(() => {
-      setIsLoading(false);
+  const handleSelectChange = (name: string, value: string) => {
+    setMealData((prev) => ({ ...prev, [name]: value }));
+  };
 
-      // Call the callback if provided
-      if (onMealAdded) {
-        onMealAdded(data);
-      }
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onMealAdded({
+      ...mealData,
+      calories: Number(mealData.calories),
+      protein: Number(mealData.protein),
+      carbs: Number(mealData.carbs),
+      fat: Number(mealData.fat),
+    });
 
-      // Close the dialog and reset the form
-      setOpen(false);
-      form.reset();
-    }, 1000);
-  }
-
-  function handleImageCapture() {
-    // In a real app, this would open a camera or file picker
-    alert(
-      "In a real app, this would open the camera to take a picture of your meal"
-    );
-  }
-
-  // Default trigger if none provided
-  const defaultTrigger = (
-    <Button className="bg-black text-white hover:bg-gray-800">
-      <Plus className="mr-2 h-4 w-4" /> Add Meal
-    </Button>
-  );
+    // Reset form
+    setMealData({
+      mealType: "breakfast",
+      description: "",
+      calories: 0,
+      protein: 0,
+      carbs: 0,
+      fat: 0,
+    });
+  };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{trigger || defaultTrigger}</DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add a meal</DialogTitle>
+          <DialogTitle>Add Meal</DialogTitle>
           <DialogDescription>
-            Record what you ate to track your calories and nutrition.
+            Enter the details of your meal to track your nutrition.
           </DialogDescription>
         </DialogHeader>
 
-        {/* Toggle between text and image input */}
-        <div className="flex border rounded-md overflow-hidden mb-4">
-          <button
-            type="button"
-            className={`flex-1 py-2 px-4 text-sm font-medium ${
-              !isImageMode ? "bg-black text-white" : "bg-white text-gray-700"
-            }`}
-            onClick={() => setIsImageMode(false)}
-          >
-            Text
-          </button>
-          <button
-            type="button"
-            className={`flex-1 py-2 px-4 text-sm font-medium ${
-              isImageMode ? "bg-black text-white" : "bg-white text-gray-700"
-            }`}
-            onClick={() => setIsImageMode(true)}
-          >
-            Photo
-          </button>
-        </div>
-
-        {isImageMode ? (
-          <div className="space-y-4">
-            <div
-              className="border-2 border-dashed rounded-lg p-12 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors"
-              onClick={handleImageCapture}
-            >
-              <Camera className="h-8 w-8 text-gray-400 mb-2" />
-              <p className="text-sm text-gray-500 text-center">
-                Take a photo of your meal or
-                <br />
-                click to upload an image
-              </p>
+        <form onSubmit={handleSubmit}>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="mealType">Meal Type</Label>
+              <Select
+                value={mealData.mealType}
+                onValueChange={(value) => handleSelectChange("mealType", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select meal type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="breakfast">Breakfast</SelectItem>
+                  <SelectItem value="lunch">Lunch</SelectItem>
+                  <SelectItem value="dinner">Dinner</SelectItem>
+                  <SelectItem value="snack">Snack</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <p className="text-xs text-gray-500">
-              We&apos;ll automatically detect the food and estimate calories
-            </p>
-          </div>
-        ) : (
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="mealType"
-                render={({ field }) => (
-                  <FormItem className="space-y-3">
-                    <FormLabel>Meal Type</FormLabel>
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        className="flex space-x-1"
-                      >
-                        <div className="flex items-center space-x-1">
-                          <RadioGroupItem value="breakfast" id="breakfast" />
-                          <label
-                            htmlFor="breakfast"
-                            className="text-sm font-normal"
-                          >
-                            Breakfast
-                          </label>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                          <RadioGroupItem value="lunch" id="lunch" />
-                          <label
-                            htmlFor="lunch"
-                            className="text-sm font-normal"
-                          >
-                            Lunch
-                          </label>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                          <RadioGroupItem value="dinner" id="dinner" />
-                          <label
-                            htmlFor="dinner"
-                            className="text-sm font-normal"
-                          >
-                            Dinner
-                          </label>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                          <RadioGroupItem value="snack" id="snack" />
-                          <label
-                            htmlFor="snack"
-                            className="text-sm font-normal"
-                          >
-                            Snack
-                          </label>
-                        </div>
-                      </RadioGroup>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
 
-              <FormField
-                control={form.control}
+            <div className="grid gap-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
                 name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>What did you eat?</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Describe your meal... (e.g. Turkey sandwich with lettuce and tomato, apple, water)"
-                        className="resize-none"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                placeholder="What did you eat? (e.g., Grilled chicken salad with olive oil dressing)"
+                value={mealData.description}
+                onChange={handleChange}
+                className="resize-none"
               />
+            </div>
 
-              <FormField
-                control={form.control}
-                name="calories"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Calories</FormLabel>
-                    <FormControl>
-                      <Input type="number" placeholder="e.g. 450" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="pt-2 flex justify-between items-center">
-                <div className="flex items-center text-sm text-gray-500">
-                  <Clock className="mr-1 h-4 w-4" />
-                  <span>Now</span>
-                </div>
-                <DialogFooter className="sm:justify-start">
-                  <Button
-                    type="submit"
-                    className="bg-black text-white hover:bg-gray-800"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? "Saving..." : "Save Meal"}
-                  </Button>
-                </DialogFooter>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="calories">Calories</Label>
+                <Input
+                  id="calories"
+                  name="calories"
+                  type="number"
+                  placeholder="e.g., 350"
+                  value={mealData.calories}
+                  onChange={handleChange}
+                />
               </div>
-            </form>
-          </Form>
-        )}
+              <div className="grid gap-2">
+                <Label htmlFor="protein">Protein (g)</Label>
+                <Input
+                  id="protein"
+                  name="protein"
+                  type="number"
+                  placeholder="e.g., 20"
+                  value={mealData.protein}
+                  onChange={handleChange}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="carbs">Carbs (g)</Label>
+                <Input
+                  id="carbs"
+                  name="carbs"
+                  type="number"
+                  placeholder="e.g., 40"
+                  value={mealData.carbs}
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="fat">Fat (g)</Label>
+                <Input
+                  id="fat"
+                  name="fat"
+                  type="number"
+                  placeholder="e.g., 15"
+                  value={mealData.fat}
+                  onChange={handleChange}
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit">Add Meal</Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

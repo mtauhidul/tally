@@ -17,11 +17,18 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Tally - Daily Calorie Tracking Made Simple",
+  title: "Niblet - Daily Calorie Tracking Made Simple",
   description:
-    "Track your calories and nutrition with a minimal, intuitive interface. Reach your health goals with Tally.",
-  keywords: ["calorie tracking", "nutrition", "health app", "diet", "fitness"],
-  authors: [{ name: "Tally App" }],
+    "Track your calories and nutrition with a minimal, intuitive interface. Reach your health goals with Niblet.",
+  keywords: [
+    "calorie tracking",
+    "nutrition",
+    "health app",
+    "diet",
+    "fitness",
+    "AI nutrition",
+  ],
+  authors: [{ name: "Niblet.ai" }],
   viewport: "width=device-width, initial-scale=1",
 };
 

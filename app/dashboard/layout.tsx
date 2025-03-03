@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import NibletLogo from "@/components/niblet-logo";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -66,7 +67,7 @@ export default function DashboardLayout({
         <div className="flex flex-col flex-grow border-r border-gray-200 bg-white pt-5 pb-4 overflow-y-auto">
           <div className="flex items-center justify-center flex-shrink-0 px-4 mb-5">
             <Link href="/dashboard" className="text-2xl font-bold">
-              Tally
+              <NibletLogo height={40} />
             </Link>
           </div>
           <ScrollArea className="flex-1 px-3">
@@ -121,7 +122,7 @@ export default function DashboardLayout({
                 className="text-2xl font-bold"
                 onClick={() => setIsOpen(false)}
               >
-                Tally
+                <NibletLogo height={32} />
               </Link>
               <Button
                 variant="ghost"
@@ -173,7 +174,9 @@ export default function DashboardLayout({
       {/* Main content */}
       <main className="flex-1 md:ml-64">
         <div className="md:hidden py-4 px-4 sm:px-6 lg:px-8 h-16 border-b bg-white flex items-center">
-          <h1 className="text-xl font-bold">Tally</h1>
+          <h1 className="text-xl font-bold mx-auto">
+            <NibletLogo height={28} />
+          </h1>
         </div>
         <div className="py-6 px-4 sm:px-6 lg:px-8">{children}</div>
       </main>
