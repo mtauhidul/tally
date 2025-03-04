@@ -1,6 +1,6 @@
-# Tally - Simple Calorie Tracking
+# niblet.ai - Simple Calorie Tracking
 
-Tally is a lightweight web application that helps users lose (or gain) weight by tracking calories with an incredibly easy data ingestion system, tracking daily weight, providing simple visual charts for progress, and offering encouragement based on weight changes.
+niblet.ait.ai is a lightweight web application that helps users lose (or gain) weight by tracking calories with an incredibly easy data ingestion system, tracking daily weight, providing simple visual charts for progress, and offering encouragement based on weight changes.
 
 ## Key Features
 
@@ -73,8 +73,8 @@ Tally is a lightweight web application that helps users lose (or gain) weight by
 1. Clone the repository
 
    ```
-   git clone https://github.com/yourusername/tally.git
-   cd tally
+   git clone https://github.com/yourusername/niblet.ait.ai.git
+   cd niblet.ait.ai
    ```
 
 2. Install dependencies

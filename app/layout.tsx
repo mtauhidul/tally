@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     "fitness",
     "AI nutrition",
   ],
-  authors: [{ name: "Niblet.ai" }],
+  authors: [{ name: "niblet.ai" }],
   viewport: "width=device-width, initial-scale=1",
 };
 

@@ -1,12 +1,12 @@
 "use client";
 
 import { AddMealDialog } from "@/components/add-meal-dialog";
+import { AIAssistant } from "@/components/ai-assistant";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { UnifiedChart } from "@/components/unified-chart";
-import { Camera, Plus, SendHorizontal } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useState } from "react";
 
 export default function DashboardPage() {
@@ -45,23 +45,7 @@ export default function DashboardPage() {
     },
   ];
 
-  const [message, setMessage] = useState("");
   const [isAddMealDialogOpen, setIsAddMealDialogOpen] = useState(false);
-
-  const handleSendMessage = () => {
-    if (message.trim()) {
-      // In a real app, this would send the message to an API
-      console.log("Sending message:", message);
-      setMessage("");
-    }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
 
   return (
     <div className="flex flex-col space-y-4 pb-6">
@@ -82,35 +66,8 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Chat Interface */}
-      <Card className="border-0 shadow-sm">
-        <CardContent className="p-3">
-          <div className="bg-gray-50 rounded-md p-4 min-h-20 mb-3 text-sm text-gray-600">
-            what would you like to do? Log a meal. Ask me to estimate calories
-            for a dish. Get a recipe recommendation.
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" className="shrink-0">
-              <Camera className="h-5 w-5" />
-            </Button>
-            <Input
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={handleKeyPress}
-              placeholder="Type your meal or question..."
-              className="flex-1"
-            />
-            <Button
-              variant="outline"
-              size="icon"
-              className="shrink-0"
-              onClick={handleSendMessage}
-            >
-              <SendHorizontal className="h-5 w-5" />
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* AI Assistant Interface */}
+      <AIAssistant />
 
       {/* Today's Meals */}
       <Card className="border-0 shadow-sm">
@@ -147,15 +104,8 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Progress Chart */}
-      <Card className="border-0 shadow-sm">
-        <CardContent className="p-3">
-          <h2 className="font-semibold text-lg mb-2">Progress Chart</h2>
-          <div className="h-64 w-full">
-            <UnifiedChart />
-          </div>
-        </CardContent>
-      </Card>
+      {/* Enhanced Progress Chart */}
+      <UnifiedChart />
 
       {/* Add Meal Dialog */}
       <AddMealDialog

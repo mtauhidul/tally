@@ -213,7 +213,7 @@ export function OnboardingFlow() {
       {step === 1 && (
         <Card>
           <CardHeader>
-            <CardTitle>Welcome to Tally!</CardTitle>
+            <CardTitle>Welcome to niblet.ai!</CardTitle>
             <CardDescription>
               Let&apos;s start by collecting some basic information to
               personalize your experience.

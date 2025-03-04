@@ -48,7 +48,7 @@ export default function WelcomePage() {
       <header className="border-b py-4 px-4 bg-white">
         <div className="max-w-7xl mx-auto w-full">
           <Link href="/" className="inline-block">
-            <h1 className="text-2xl font-bold">Tally</h1>
+            <h1 className="text-2xl font-bold">niblet.ai</h1>
           </Link>
         </div>
       </header>
@@ -62,7 +62,9 @@ export default function WelcomePage() {
                 <CheckCircle className="h-12 w-12 text-green-600" />
               </div>
             </div>
-            <CardTitle className="text-2xl">Welcome to Tally!</CardTitle>
+            <CardTitle className="text-2xl">
+              Welcome to niblet.ait.ai!
+            </CardTitle>
             <CardDescription>
               Your account is ready to help you reach your goals.
             </CardDescription>
@@ -102,7 +104,7 @@ export default function WelcomePage() {
 
       {/* Footer */}
       <footer className="border-t py-4 px-4 text-center text-sm text-gray-500">
-        &copy; {new Date().getFullYear()} Tally. All rights reserved.
+        &copy; {new Date().getFullYear()} niblet.ait.ai. All rights reserved.
       </footer>
     </div>
   );

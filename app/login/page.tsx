@@ -60,7 +60,7 @@ export default function LoginPage() {
 
       // Show success toast
       toast.success("Login successful", {
-        description: "Welcome back to Tally!",
+        description: "Welcome back to niblet.ai!",
       });
 
       // Redirect to appropriate page
@@ -85,7 +85,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-8">
           <Link href="/" className="inline-block">
-            <h1 className="text-3xl font-bold">Tally</h1>
+            <h1 className="text-3xl font-bold">niblet.ai</h1>
           </Link>
         </div>
 
