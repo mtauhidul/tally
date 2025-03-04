@@ -1,10 +1,4 @@
-// app/login/page.tsx
 "use client";
-
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -15,152 +9,326 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useAuth } from "@/contexts/auth-context";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "sonner";
-import { z } from "zod";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import React, { useState } from "react";
 
-const formSchema = z.object({
-  email: z.string().email({
-    message: "Please enter a valid email address.",
-  }),
-  password: z.string().min(8, {
-    message: "Password must be at least 8 characters.",
-  }),
-});
-
-export default function LoginPage() {
+export default function SignInPage() {
   const router = useRouter();
-  const { login, clearError, onboardingComplete } = useAuth();
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<"signin" | "signup">("signin");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
+  // Sign In form state
+  const [signInForm, setSignInForm] = useState({
+    email: "",
+    password: "",
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  // Sign Up form state
+  const [signUpForm, setSignUpForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
+
+  // Sign In form errors
+  const [signInErrors, setSignInErrors] = useState({
+    email: "",
+    password: "",
+    general: "",
+  });
+
+  // Sign Up form errors
+  const [signUpErrors, setSignUpErrors] = useState({
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    general: "",
+  });
+
+  const handleSignIn = (e: React.FormEvent) => {
+    e.preventDefault();
     setIsLoading(true);
-    clearError();
 
-    try {
-      await login(values.email, values.password);
+    // Reset errors
+    setSignInErrors({
+      email: "",
+      password: "",
+      general: "",
+    });
 
-      // Show success toast
-      toast.success("Login successful", {
-        description: "Welcome back to niblet.ai!",
-      });
+    // Validate form
+    let hasErrors = false;
+    const newErrors = { ...signInErrors };
 
-      // Redirect to appropriate page
-      if (onboardingComplete) {
-        router.push("/dashboard");
-      } else {
-        router.push("/onboarding");
-      }
-    } catch (error) {
-      toast.error("Login failed", {
-        description:
-          typeof error === "string"
-            ? error
-            : "Could not log in with those credentials",
-      });
-      setIsLoading(false);
+    if (!signInForm.email) {
+      newErrors.email = "Email is required";
+      hasErrors = true;
     }
-  }
+
+    if (!signInForm.password) {
+      newErrors.password = "Password is required";
+      hasErrors = true;
+    }
+
+    if (hasErrors) {
+      setSignInErrors(newErrors);
+      setIsLoading(false);
+      return;
+    }
+
+    // Simulate API call
+    setTimeout(() => {
+      // In a real app, this would validate credentials with a backend
+      // For demo, just redirect to home after a delay
+      setIsLoading(false);
+      router.push("/");
+    }, 1500);
+  };
+
+  const handleSignUp = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    // Reset errors
+    setSignUpErrors({
+      name: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+      general: "",
+    });
+
+    // Validate form
+    let hasErrors = false;
+    const newErrors = { ...signUpErrors };
+
+    if (!signUpForm.name) {
+      newErrors.name = "Name is required";
+      hasErrors = true;
+    }
+
+    if (!signUpForm.email) {
+      newErrors.email = "Email is required";
+      hasErrors = true;
+    } else if (!/\S+@\S+\.\S+/.test(signUpForm.email)) {
+      newErrors.email = "Email is invalid";
+      hasErrors = true;
+    }
+
+    if (!signUpForm.password) {
+      newErrors.password = "Password is required";
+      hasErrors = true;
+    } else if (signUpForm.password.length < 8) {
+      newErrors.password = "Password must be at least 8 characters";
+      hasErrors = true;
+    }
+
+    if (signUpForm.password !== signUpForm.confirmPassword) {
+      newErrors.confirmPassword = "Passwords do not match";
+      hasErrors = true;
+    }
+
+    if (hasErrors) {
+      setSignUpErrors(newErrors);
+      setIsLoading(false);
+      return;
+    }
+
+    // Simulate API call
+    setTimeout(() => {
+      // In a real app, this would create a new account and sign in
+      // For demo, just redirect to home after a delay
+      setIsLoading(false);
+      router.push("/");
+    }, 1500);
+  };
 
   return (
-    <div className="container flex items-center justify-center min-h-screen py-8">
-      <div className="w-full max-w-md">
-        <div className="flex justify-center mb-8">
-          <Link href="/" className="inline-block">
-            <h1 className="text-3xl font-bold">niblet.ai</h1>
-          </Link>
-        </div>
+    <div className="flex items-center justify-center min-h-screen bg-background p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-bold">niblet.ai</CardTitle>
+          <CardDescription>
+            Simplify your weight management journey
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs
+            value={activeTab}
+            onValueChange={(value) =>
+              setActiveTab(value as "signin" | "signup")
+            }
+            className="w-full"
+          >
+            <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsTrigger value="signin">Sign In</TabsTrigger>
+              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+            </TabsList>
 
-        <Card className="border-0 shadow-lg">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center">
-              Log in
-            </CardTitle>
-            <CardDescription className="text-center">
-              Enter your email and password to log in to your account
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-4"
-              >
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input placeholder="name@example.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
+            <TabsContent value="signin">
+              <form onSubmit={handleSignIn} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={signInForm.email}
+                    onChange={(e) =>
+                      setSignInForm({ ...signInForm, email: e.target.value })
+                    }
+                  />
+                  {signInErrors.email && (
+                    <p className="text-sm text-red-500">{signInErrors.email}</p>
                   )}
-                />
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <div className="flex items-center justify-between">
-                        <FormLabel>Password</FormLabel>
-                        <Link
-                          href="/forgot-password"
-                          className="text-sm text-gray-500 hover:text-black"
-                        >
-                          Forgot password?
-                        </Link>
-                      </div>
-                      <FormControl>
-                        <Input type="password" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password">Password</Label>
+                    <Link
+                      href="/forgot-password"
+                      className="text-sm text-muted-foreground hover:underline"
+                    >
+                      Forgot password?
+                    </Link>
+                  </div>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={signInForm.password}
+                    onChange={(e) =>
+                      setSignInForm({ ...signInForm, password: e.target.value })
+                    }
+                  />
+                  {signInErrors.password && (
+                    <p className="text-sm text-red-500">
+                      {signInErrors.password}
+                    </p>
                   )}
-                />
-                <Button
-                  type="submit"
-                  className="w-full bg-black text-white hover:bg-gray-800"
-                  disabled={isLoading}
-                >
-                  {isLoading ? "Logging in..." : "Log in"}
+                </div>
+
+                {signInErrors.general && (
+                  <div className="p-3 rounded-md bg-red-50 text-red-500 text-sm">
+                    {signInErrors.general}
+                  </div>
+                )}
+
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? (
+                    <div className="flex items-center">
+                      <span className="mr-2">Signing In</span>
+                      <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full"></div>
+                    </div>
+                  ) : (
+                    "Sign In"
+                  )}
                 </Button>
               </form>
-            </Form>
-          </CardContent>
-          <CardFooter className="flex justify-center">
-            <p className="text-sm text-gray-500">
-              Don&apos;t have an account?{" "}
-              <Link
-                href="/register"
-                className="font-medium text-black hover:underline"
-              >
-                Register
-              </Link>
-            </p>
-          </CardFooter>
-        </Card>
-      </div>
+            </TabsContent>
+
+            <TabsContent value="signup">
+              <form onSubmit={handleSignUp} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name</Label>
+                  <Input
+                    id="name"
+                    placeholder="Your name"
+                    value={signUpForm.name}
+                    onChange={(e) =>
+                      setSignUpForm({ ...signUpForm, name: e.target.value })
+                    }
+                  />
+                  {signUpErrors.name && (
+                    <p className="text-sm text-red-500">{signUpErrors.name}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="signup-email">Email</Label>
+                  <Input
+                    id="signup-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={signUpForm.email}
+                    onChange={(e) =>
+                      setSignUpForm({ ...signUpForm, email: e.target.value })
+                    }
+                  />
+                  {signUpErrors.email && (
+                    <p className="text-sm text-red-500">{signUpErrors.email}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="signup-password">Password</Label>
+                  <Input
+                    id="signup-password"
+                    type="password"
+                    placeholder="Choose a password (min. 8 characters)"
+                    value={signUpForm.password}
+                    onChange={(e) =>
+                      setSignUpForm({ ...signUpForm, password: e.target.value })
+                    }
+                  />
+                  {signUpErrors.password && (
+                    <p className="text-sm text-red-500">
+                      {signUpErrors.password}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">Confirm Password</Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    placeholder="Re-enter your password"
+                    value={signUpForm.confirmPassword}
+                    onChange={(e) =>
+                      setSignUpForm({
+                        ...signUpForm,
+                        confirmPassword: e.target.value,
+                      })
+                    }
+                  />
+                  {signUpErrors.confirmPassword && (
+                    <p className="text-sm text-red-500">
+                      {signUpErrors.confirmPassword}
+                    </p>
+                  )}
+                </div>
+
+                {signUpErrors.general && (
+                  <div className="p-3 rounded-md bg-red-50 text-red-500 text-sm">
+                    {signUpErrors.general}
+                  </div>
+                )}
+
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? (
+                    <div className="flex items-center">
+                      <span className="mr-2">Creating Account</span>
+                      <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full"></div>
+                    </div>
+                  ) : (
+                    "Create Account"
+                  )}
+                </Button>
+              </form>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+        <CardFooter className="flex justify-center text-sm text-muted-foreground">
+          By continuing, you agree to our Terms of Service and Privacy Policy
+        </CardFooter>
+      </Card>
     </div>
   );
 }

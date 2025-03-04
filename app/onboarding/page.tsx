@@ -1,517 +1,552 @@
-// app/onboarding/page.tsx
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { CheckIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { useAuth } from "@/contexts/auth-context";
+import { cn } from "@/lib/utils";
+import { authAPI } from "@/services/api";
+import { Mic, MicOff, Send } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import * as z from "zod";
-
-import { FitnessOnboarding } from "@/components/fitness-onboarding";
-import { GoalSetting } from "@/components/goal-setting";
-import NibletLogo from "@/components/niblet-logo";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useAuth } from "@/contexts/auth-context";
-import { authAPI, goalsAPI } from "@/services/api";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-// Step 1: Personal info schema
-const personalInfoSchema = z.object({
-  height: z.string().min(1, {
-    message: "Please enter your height.",
-  }),
-  weight: z.string().min(1, {
-    message: "Please enter your weight.",
-  }),
-  sex: z.string({
-    required_error: "Please select your sex.",
-  }),
-  age: z.string().refine(
-    (val) => {
-      const num = Number(val);
-      return !Number.isNaN(num) && num > 0 && num < 120;
-    },
-    {
-      message: "Please enter a valid age.",
-    }
-  ),
-});
+interface Message {
+  id: string;
+  text: string;
+  sender: "user" | "assistant";
+  timestamp: Date;
+  isQuestion?: boolean;
+  expectedDataType?:
+    | "height"
+    | "weight"
+    | "age"
+    | "gender"
+    | "goal-weight"
+    | "activity"
+    | "confirmation";
+  expectingResponse?: boolean;
+}
 
-type PersonalInfoValues = z.infer<typeof personalInfoSchema>;
-
-interface ActivityData {
-  frequency?: string;
-  duration?: string;
-  intensity?: string;
-  type?: string;
-  zone?: string;
-  description?: string;
+interface UserData {
+  height?: number;
+  weight?: number;
+  age?: number;
+  gender?: string;
+  goalWeight?: number;
+  activityLevel?: string;
 }
 
 export default function OnboardingPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const [step, setStep] = useState<number>(1);
-  const [profileData, setProfileData] = useState<Record<string, unknown>>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [activityData, setActivityData] = useState<ActivityData | null>(null);
+  const [inputValue, setInputValue] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [userData, setUserData] = useState<UserData>({});
+  const [isListening, setIsListening] = useState(false);
+  const [currentQuestion, setCurrentQuestion] = useState<Message | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Step 1 form
-  const form = useForm<PersonalInfoValues>({
-    resolver: zodResolver(personalInfoSchema),
-    defaultValues: {
-      height: "",
-      weight: "",
-      sex: "",
-      age: "",
-    },
-  });
+  // Recognition for voice input
+  const [recognitionInstance, setRecognitionInstance] = useState<any>(null);
 
-  async function handleNextStep(data?: PersonalInfoValues) {
-    if (data) {
-      setIsLoading(true);
+  // Initialize onboarding conversation
+  useEffect(() => {
+    const initialMessage: Message = {
+      id: "welcome",
+      text: "hi there! i'm nibble, your personal nutrition assistant. let's get to know each other a bit so i can help you reach your goals!",
+      sender: "assistant",
+      timestamp: new Date(),
+    };
+
+    setMessages([initialMessage]);
+
+    // After a brief pause, ask the first question
+    setTimeout(() => {
+      askNextQuestion("height");
+    }, 1000);
+
+    // Initialize speech recognition
+    if (typeof window !== "undefined") {
+      const SpeechRecognition =
+        window.SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+      if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = "en-US";
+
+        setRecognitionInstance(recognition);
+      }
+    }
+  }, []);
+
+  // Scroll to bottom of messages when new messages are added
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Handle speech recognition
+  useEffect(() => {
+    if (!recognitionInstance) return;
+
+    if (isListening) {
       try {
-        // Update user profile with form data
-        if (user) {
-          await authAPI.updateProfile({
-            height: Number(data.height),
-            weight: Number(data.weight),
-            age: Number(data.age),
-            gender: data.sex,
-          });
-        } else {
-          throw new Error("User is not authenticated");
-        }
+        recognitionInstance.onresult = (event: any) => {
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            if (event.results[i].isFinal) {
+              const transcript = event.results[i][0].transcript;
+              setInputValue((prev) => prev + transcript + " ");
+            }
+          }
+        };
 
-        // Store data for next steps
-        setProfileData({
-          height: Number(data.height),
-          weight: Number(data.weight),
-          gender: data.sex,
-          age: Number(data.age),
-        });
+        recognitionInstance.onerror = (event: any) => {
+          console.error("Speech recognition error", event.error);
+          setIsListening(false);
+        };
 
-        setStep(step + 1);
+        recognitionInstance.start();
       } catch (error) {
-        console.error("Error updating profile:", error);
-        toast.error("Error", {
-          description:
-            "Could not save your profile information. Please try again.",
-        });
-      } finally {
-        setIsLoading(false);
+        console.error("Error starting speech recognition:", error);
+        setIsListening(false);
       }
     } else {
-      setStep(step + 1);
+      try {
+        recognitionInstance.stop();
+      } catch (error) {
+        console.error("Error stopping speech recognition:", error);
+      }
     }
-  }
 
-  async function handleGoalSet(goalData: {
-    currentWeight: number;
-    goalWeight: number;
-    targetDate: string;
-    type?: string;
-    weeklyWeightChange?: number;
-    nutrition?: {
-      dailyCalories: number;
-      protein?: number;
-      carbs?: number;
-      fat?: number;
+    return () => {
+      if (isListening && recognitionInstance) {
+        try {
+          recognitionInstance.stop();
+        } catch (error) {
+          console.error("Error stopping speech recognition in cleanup:", error);
+        }
+      }
     };
-  }) {
+  }, [isListening, recognitionInstance]);
+
+  const toggleListening = () => {
+    if (!recognitionInstance) {
+      alert("speech recognition is not supported in your browser.");
+      return;
+    }
+    setIsListening(!isListening);
+  };
+
+  const askNextQuestion = (type: string) => {
+    let questionText = "";
+
+    switch (type) {
+      case "height":
+        questionText = "what's your height in inches?";
+        break;
+      case "weight":
+        questionText = "what's your current weight in pounds?";
+        break;
+      case "age":
+        questionText = "how old are you?";
+        break;
+      case "gender":
+        questionText =
+          "what's your gender? this helps me calculate your calorie needs more accurately.";
+        break;
+      case "goal-weight":
+        questionText = "what's your goal weight in pounds?";
+        break;
+      case "activity":
+        questionText =
+          "how would you describe your activity level? (sedentary, lightly active, moderately active, very active)";
+        break;
+      case "confirmation":
+        const { height, weight, age, gender, goalWeight, activityLevel } =
+          userData;
+        questionText = `great! here's what i've got:\n\nheight: ${height} inches\nweight: ${weight} lbs\nage: ${age}\ngender: ${gender}\ngoal weight: ${goalWeight} lbs\nactivity level: ${activityLevel}\n\ndoes that look right to you?`;
+        break;
+      default:
+        questionText =
+          "what else would you like to tell me about your health goals?";
+    }
+
+    const question: Message = {
+      id: `question-${Date.now()}`,
+      text: questionText,
+      sender: "assistant",
+      timestamp: new Date(),
+      isQuestion: true,
+      expectedDataType: type as any,
+      expectingResponse: true,
+    };
+
+    setMessages((prev) => [...prev, question]);
+    setCurrentQuestion(question);
+  };
+
+  const handleSendMessage = async () => {
+    if (!inputValue.trim() || !currentQuestion) return;
+
+    // Add user message
+    const userMessage: Message = {
+      id: `user-${Date.now()}`,
+      text: inputValue,
+      sender: "user",
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    const userInput = inputValue;
+    setInputValue("");
+
+    // Process the user's response
+    if (currentQuestion.expectedDataType) {
+      processUserResponse(userInput, currentQuestion.expectedDataType);
+    }
+  };
+
+  const processUserResponse = (response: string, dataType: string) => {
+    let nextQuestionType = "";
+    let processedValue: any;
+
+    switch (dataType) {
+      case "height":
+        // Extract number from response
+        processedValue = extractNumber(response);
+        if (processedValue) {
+          setUserData((prev) => ({ ...prev, height: processedValue }));
+          nextQuestionType = "weight";
+
+          // Confirmation message
+          addAssistantMessage(`got it! ${processedValue} inches tall.`);
+        } else {
+          // Ask again if couldn't extract a number
+          addAssistantMessage(
+            "i didn't catch that. please enter your height in inches (e.g., 70)."
+          );
+          nextQuestionType = "height";
+        }
+        break;
+
+      case "weight":
+        processedValue = extractNumber(response);
+        if (processedValue) {
+          setUserData((prev) => ({ ...prev, weight: processedValue }));
+          nextQuestionType = "age";
+
+          addAssistantMessage(`${processedValue} pounds. noted!`);
+        } else {
+          addAssistantMessage(
+            "i need a number for your weight in pounds. please try again."
+          );
+          nextQuestionType = "weight";
+        }
+        break;
+
+      case "age":
+        processedValue = extractNumber(response);
+        if (processedValue && processedValue > 0 && processedValue < 120) {
+          setUserData((prev) => ({ ...prev, age: processedValue }));
+          nextQuestionType = "gender";
+
+          addAssistantMessage(`${processedValue} years old. thanks!`);
+        } else {
+          addAssistantMessage("please provide a valid age between 1 and 120.");
+          nextQuestionType = "age";
+        }
+        break;
+
+      case "gender":
+        processedValue = response.toLowerCase();
+        if (
+          processedValue.includes("male") ||
+          processedValue.includes("female") ||
+          processedValue.includes("other") ||
+          processedValue.includes("prefer")
+        ) {
+          // Extract just the basic gender for storage
+          let genderValue = "other";
+          if (
+            processedValue.includes("male") &&
+            !processedValue.includes("female")
+          ) {
+            genderValue = "male";
+          } else if (processedValue.includes("female")) {
+            genderValue = "female";
+          }
+
+          setUserData((prev) => ({ ...prev, gender: genderValue }));
+          nextQuestionType = "goal-weight";
+
+          addAssistantMessage(`thanks for sharing that.`);
+        } else {
+          addAssistantMessage(
+            "please specify male, female, or other for your gender."
+          );
+          nextQuestionType = "gender";
+        }
+        break;
+
+      case "goal-weight":
+        processedValue = extractNumber(response);
+        if (processedValue && processedValue > 0) {
+          setUserData((prev) => ({ ...prev, goalWeight: processedValue }));
+          nextQuestionType = "activity";
+
+          addAssistantMessage(
+            `got it! ${processedValue} pounds is your goal weight.`
+          );
+        } else {
+          addAssistantMessage(
+            "i need a number for your goal weight in pounds."
+          );
+          nextQuestionType = "goal-weight";
+        }
+        break;
+
+      case "activity":
+        processedValue = response.toLowerCase();
+        let activityLevel = "moderate";
+
+        if (
+          processedValue.includes("sedentary") ||
+          processedValue.includes("not active") ||
+          processedValue.includes("inactive")
+        ) {
+          activityLevel = "sedentary";
+        } else if (
+          processedValue.includes("light") ||
+          processedValue.includes("mild")
+        ) {
+          activityLevel = "light";
+        } else if (
+          processedValue.includes("moderate") ||
+          processedValue.includes("average")
+        ) {
+          activityLevel = "moderate";
+        } else if (
+          processedValue.includes("very") ||
+          processedValue.includes("high") ||
+          processedValue.includes("intense")
+        ) {
+          activityLevel = "very-active";
+        }
+
+        setUserData((prev) => ({ ...prev, activityLevel }));
+        nextQuestionType = "confirmation";
+
+        addAssistantMessage(`${activityLevel} activity level. thanks!`);
+        break;
+
+      case "confirmation":
+        if (
+          response.toLowerCase().includes("yes") ||
+          response.toLowerCase().includes("correct") ||
+          response.toLowerCase().includes("look") ||
+          response.toLowerCase().includes("right") ||
+          response.toLowerCase().includes("good")
+        ) {
+          // User confirmed info is correct
+          completeOnboarding();
+        } else {
+          // User wants to make corrections
+          addAssistantMessage(
+            "no problem! let's start again with your height."
+          );
+          nextQuestionType = "height";
+        }
+        break;
+    }
+
+    // Set current question to null momentarily to avoid duplicate responses
+    setCurrentQuestion(null);
+
+    // Ask next question with a slight delay for natural conversation flow
+    if (nextQuestionType) {
+      setTimeout(() => {
+        askNextQuestion(nextQuestionType);
+      }, 1000);
+    }
+  };
+
+  const addAssistantMessage = (text: string) => {
+    const message: Message = {
+      id: `assistant-${Date.now()}`,
+      text,
+      sender: "assistant",
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, message]);
+  };
+
+  const extractNumber = (text: string): number | null => {
+    const matches = text.match(/\d+(\.\d+)?/);
+    return matches ? parseFloat(matches[0]) : null;
+  };
+
+  const completeOnboarding = async () => {
     setIsLoading(true);
+
     try {
-      // Create goal for user
-      await goalsAPI.createGoal(goalData);
-
-      // Move to fitness assessment
-      setStep(step + 1);
-    } catch (error) {
-      console.error("Error saving goal:", error);
-      toast.error("Error", {
-        description: "Could not save your goal information. Please try again.",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function handleFitnessComplete(data: ActivityData) {
-    // Store activity data
-    setActivityData(data);
-
-    // Process and save activity level to user profile
-    // For this example, we're simply mapping intensity to activity level
-    let activityLevel = "moderate";
-
-    if (data.intensity) {
-      const intensity = data.intensity.toLowerCase();
-      if (intensity.includes("light") || intensity.includes("low")) {
-        activityLevel = "light";
-      } else if (
-        intensity.includes("moderate") ||
-        intensity.includes("medium")
-      ) {
-        activityLevel = "moderate";
-      } else if (
-        intensity.includes("vigorous") ||
-        intensity.includes("high") ||
-        intensity.includes("intense")
-      ) {
-        activityLevel = "active";
-      }
-    }
-
-    // Additional adjustment based on frequency
-    if (data.frequency) {
-      const freq = data.frequency.toLowerCase();
-      if (
-        freq.includes("5") ||
-        freq.includes("6") ||
-        freq.includes("7") ||
-        freq.includes("daily")
-      ) {
-        // Increase activity level for high frequency
-        if (activityLevel === "moderate") activityLevel = "active";
-        if (activityLevel === "active") activityLevel = "very-active";
-      }
-    }
-
-    setIsLoading(true);
-    try {
-      // Update user profile with activity level
+      // Update user profile with the collected data
       if (user) {
         await authAPI.updateProfile({
-          activityLevel,
+          height: userData.height,
+          weight: userData.weight,
+          age: userData.age,
+          gender: userData.gender,
+          activityLevel: userData.activityLevel,
         });
+
+        // Create goal if we have goal weight
+        if (userData.goalWeight) {
+          // Here you would typically call your goals API
+          // This is a placeholder
+          console.log("Setting goal weight to:", userData.goalWeight);
+        }
 
         // Mark onboarding as complete
         await authAPI.completeOnboarding();
-      }
 
-      // Move to completion
-      setStep(step + 1);
+        // Success message
+        addAssistantMessage(
+          "awesome! your profile is all set up. let's start tracking your nutrition journey!"
+        );
+
+        // Redirect after a delay
+        setTimeout(() => {
+          router.push("/dashboard");
+        }, 3000);
+      } else {
+        throw new Error("User is not authenticated");
+      }
     } catch (error) {
-      console.error("Error updating activity:", error);
+      console.error("Error completing onboarding:", error);
       toast.error("Error", {
         description:
-          "Could not save your activity information. Please try again.",
+          "Something went wrong with setting up your profile. Please try again.",
       });
+      addAssistantMessage(
+        "i'm having trouble saving your profile. can we try again?"
+      );
+
+      // Reset to the first question
+      setTimeout(() => {
+        askNextQuestion("height");
+      }, 1000);
     } finally {
       setIsLoading(false);
     }
-  }
+  };
 
-  async function handleFinish() {
-    router.push("/welcome");
-  }
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
       <header className="border-b py-4 px-4 bg-white">
-        <div className="max-w-7xl mx-auto w-full">
+        <div className="max-w-7xl mx-auto w-full flex justify-center">
           <Link href="/" className="inline-block">
-            <NibletLogo height={40} />
+            <span className="text-2xl font-bold">niblet.ai</span>
           </Link>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 py-8 px-4">
-        <div className="max-w-3xl mx-auto px-4">
-          {/* Progress indicator */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                    step >= 1 ? "bg-black text-white" : "bg-gray-200"
-                  }`}
-                >
-                  {step > 1 ? <CheckIcon className="h-5 w-5" /> : "1"}
+      <main className="flex-1 py-6 px-4">
+        <div className="max-w-md mx-auto">
+          <Card className="border-0 shadow-md overflow-hidden">
+            <CardContent className="p-0">
+              <div className="h-[500px] flex flex-col">
+                {/* Chat messages */}
+                <div className="flex-1 p-4 overflow-y-auto">
+                  <div className="flex flex-col space-y-3">
+                    {messages.map((message) => (
+                      <div key={message.id} className="space-y-2">
+                        <div
+                          className={cn(
+                            "px-3 py-2 rounded-lg max-w-[85%] break-words",
+                            message.sender === "user"
+                              ? "bg-black text-white ml-auto"
+                              : "bg-gray-100 text-black"
+                          )}
+                        >
+                          <p className="text-sm whitespace-pre-line">
+                            {message.text}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                    <div ref={messagesEndRef} />
+                  </div>
                 </div>
-                <div
-                  className={`h-1 w-12 mx-1 ${
-                    step > 1 ? "bg-black" : "bg-gray-200"
-                  }`}
-                ></div>
-              </div>
-              <div className="flex items-center">
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                    step >= 2 ? "bg-black text-white" : "bg-gray-200"
-                  }`}
-                >
-                  {step > 2 ? <CheckIcon className="h-5 w-5" /> : "2"}
-                </div>
-                <div
-                  className={`h-1 w-12 mx-1 ${
-                    step > 2 ? "bg-black" : "bg-gray-200"
-                  }`}
-                ></div>
-              </div>
-              <div className="flex items-center">
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                    step >= 3 ? "bg-black text-white" : "bg-gray-200"
-                  }`}
-                >
-                  {step > 3 ? <CheckIcon className="h-5 w-5" /> : "3"}
-                </div>
-                <div
-                  className={`h-1 w-12 mx-1 ${
-                    step > 3 ? "bg-black" : "bg-gray-200"
-                  }`}
-                ></div>
-              </div>
-              <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                  step >= 4 ? "bg-black text-white" : "bg-gray-200"
-                }`}
-              >
-                {step > 4 ? <CheckIcon className="h-5 w-5" /> : "4"}
-              </div>
-            </div>
-            <div className="flex justify-between text-xs mt-2">
-              <div
-                className={step >= 1 ? "font-medium" : "text-muted-foreground"}
-              >
-                Basic Info
-              </div>
-              <div
-                className={step >= 2 ? "font-medium" : "text-muted-foreground"}
-              >
-                Set Goal
-              </div>
-              <div
-                className={step >= 3 ? "font-medium" : "text-muted-foreground"}
-              >
-                Activity
-              </div>
-              <div
-                className={step >= 4 ? "font-medium" : "text-muted-foreground"}
-              >
-                Finish
-              </div>
-            </div>
-          </div>
 
-          {/* Step 1: Basic information */}
-          {step === 1 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Welcome to niblet.ai!</CardTitle>
-                <CardDescription>
-                  Let&apos;s start by collecting some basic information to
-                  personalize your experience.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Form {...form}>
-                  <form
-                    onSubmit={form.handleSubmit(handleNextStep)}
-                    className="space-y-4"
-                  >
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <FormField
-                        control={form.control}
-                        name="height"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Height (inches)</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="e.g. 68"
-                                {...field}
-                                type="number"
-                              />
-                            </FormControl>
-                            <FormDescription>
-                              Enter your height in inches
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="weight"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Current Weight (lbs)</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="e.g. 180"
-                                {...field}
-                                type="number"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <FormField
-                        control={form.control}
-                        name="sex"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Sex</FormLabel>
-                            <Select
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="male">Male</SelectItem>
-                                <SelectItem value="female">Female</SelectItem>
-                                <SelectItem value="other">Other</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormDescription>
-                              Used for metabolic calculations
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="age"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Age</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="e.g. 35"
-                                {...field}
-                                type="number"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
+                {/* Input area */}
+                <div className="p-3 border-t bg-white">
+                  <div className="flex items-center gap-2">
                     <Button
-                      type="submit"
-                      className="w-full bg-black text-white hover:bg-gray-800 mt-4"
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0"
+                      onClick={toggleListening}
                       disabled={isLoading}
                     >
-                      {isLoading ? "Saving..." : "Continue"}
+                      {isListening ? (
+                        <MicOff className="h-5 w-5 text-red-500" />
+                      ) : (
+                        <Mic className="h-5 w-5" />
+                      )}
                     </Button>
-                  </form>
-                </Form>
-              </CardContent>
-            </Card>
-          )}
 
-          {/* Step 2: Goal setting */}
-          {step === 2 && (
-            <>
-              <GoalSetting
-                initialData={profileData}
-                onGoalSet={handleGoalSet}
-                isLoading={isLoading}
-              />
-              <div className="mt-4 flex justify-between">
-                <Button
-                  variant="outline"
-                  onClick={() => setStep(1)}
-                  disabled={isLoading}
-                >
-                  Back
-                </Button>
-              </div>
-            </>
-          )}
+                    <Input
+                      value={inputValue}
+                      onChange={(e) => setInputValue(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      placeholder={
+                        isListening ? "listening..." : "type your response..."
+                      }
+                      className="flex-1"
+                      disabled={
+                        isLoading || !currentQuestion?.expectingResponse
+                      }
+                    />
 
-          {/* Step 3: Fitness Assessment */}
-          {step === 3 && (
-            <>
-              <FitnessOnboarding onComplete={handleFitnessComplete} />
-              <div className="mt-4 flex justify-between">
-                <Button
-                  variant="outline"
-                  onClick={() => setStep(2)}
-                  disabled={isLoading}
-                >
-                  Back
-                </Button>
-              </div>
-            </>
-          )}
-
-          {/* Step 4: Finish */}
-          {step === 4 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>You&apos;re all set!</CardTitle>
-                <CardDescription>
-                  Your profile has been created and your goals are set.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-center">
-                <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-100 mb-6">
-                  <CheckIcon className="h-10 w-10 text-green-600" />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0"
+                      onClick={handleSendMessage}
+                      disabled={
+                        !inputValue.trim() ||
+                        isLoading ||
+                        !currentQuestion?.expectingResponse
+                      }
+                    >
+                      <Send className="h-5 w-5" />
+                    </Button>
+                  </div>
                 </div>
-
-                <h3 className="text-xl font-medium mb-2">Setup Complete!</h3>
-                <p className="text-gray-600 mb-6">
-                  You&apos;re ready to start tracking your nutrition and
-                  progress toward your goals.
-                </p>
-
-                <Button
-                  className="bg-black text-white hover:bg-gray-800"
-                  onClick={handleFinish}
-                >
-                  Get Started
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="border-t py-4 px-4 text-center text-sm text-gray-500">
-        &copy; {new Date().getFullYear()} niblet.ai. All rights reserved.
+      <footer className="border-t py-4 px-4 text-center text-xs text-gray-500 bg-white">
+        &copy; {new Date().getFullYear()} niblet.ai. all rights reserved.
       </footer>
     </div>
   );
